@@ -1,199 +1,245 @@
 # ApplyWise
 
-ApplyWise is an AI-powered job application assistant. Upload a resume and
-paste a job description to generate a tailored resume, a personalized cover
-letter, quality scores, and a transparent execution summary from multiple
-specialist agents.
+ApplyWise is an AI-powered job application assistant that transforms a
+candidate's existing resume and a target job description into a tailored
+application package.
 
-The repository contains two implementations:
+It analyzes the job description, adapts the resume to the target role,
+generates a personalized cover letter, and evaluates the resulting documents
+for quality and job alignment. The project includes both a Python web
+application and an equivalent n8n automation workflow.
 
-- A **Python/FastAPI + React** application for local development and the main
-  demo.
-- An **n8n workflow** that provides an alternative automation flow using an
-  n8n webhook and Groq.
+## Highlights
 
-> **Important:** Never commit API keys, uploaded resumes, generated documents,
-> or other personal information to GitHub. The included `.gitignore` excludes
-> these files for new Git repositories.
+- Job description analysis and ATS keyword extraction
+- Resume tailoring for a specific position
+- Personalized cover-letter generation
+- Quality, alignment, and readiness scoring
+- Downloadable DOCX resume and cover-letter files
+- Visible agent execution results and improvement suggestions
+- FastAPI backend with a React frontend
+- Importable n8n workflow for an automation-based deployment
 
-## Features
+## How it works
 
-- Extracts job title, company, requirements, skills, qualifications, and ATS
-  keywords from a job description.
-- Tailors resume content for the target role.
-- Generates a personalized cover letter.
-- Reviews the application package for quality, ATS compatibility, alignment,
-  and readiness.
-- Produces downloadable DOCX files.
-- Displays agent outputs, processing steps, scores, and suggested improvements.
-- Includes a separate n8n workflow for DOCX resume processing.
+The Python application uses a supervisor to coordinate four specialist agents:
 
-## Architecture
+| Component | Responsibility |
+| --- | --- |
+| Job Finder Agent | Extracts the role, company context, responsibilities, skills, and qualifications from the job description |
+| Resume Tailor Agent | Aligns resume content with the target role without inventing candidate experience |
+| Cover Letter Agent | Produces a role-specific cover letter using the job and candidate information |
+| Critic Agent | Reviews the application package and reports quality, ATS, alignment, and improvement metrics |
+| Supervisor Orchestrator | Coordinates the agents, combines their results, and generates the output documents |
 
-### Python application
+### Processing flow
 
-The backend coordinates four specialist agents through a supervisor:
+```text
+Resume + Job Description
+            |
+            v
+    Job Finder Agent
+            |
+            v
+    Resume Tailor Agent ----> Tailored Resume
+            |
+            v
+    Cover Letter Agent ------> Cover Letter
+            |
+            v
+       Critic Agent ---------> Scores and Improvements
+            |
+            v
+      Application Package
+```
 
-1. **Job Finder Agent** - analyzes the job description and extracts role and
-   company context.
-2. **Resume Tailor Agent** - aligns resume content with the target role.
-3. **Cover Letter Agent** - generates a role-specific cover letter.
-4. **Critic Agent** - evaluates quality, ATS alignment, and improvements.
-5. **Supervisor Orchestrator** - coordinates the agents and generates DOCX
-   documents.
+## Technology stack
 
-### Main directories
+- **Backend:** Python, FastAPI, Pydantic
+- **Frontend:** React, Vite, Tailwind CSS
+- **Language model:** Groq
+- **Search and research:** Tavily
+- **Document generation:** python-docx
+- **Resume parsing:** PyPDF2 and DOCX processing
+- **Automation alternative:** n8n
+
+## Repository structure
 
 ```text
 ApplyWise/
 ├── backend/
-│   ├── agents/              # Specialist agents
-│   ├── api/                 # FastAPI routes and application factory
-│   ├── models/              # Pydantic schemas
+│   ├── agents/              # Specialist AI agents
+│   ├── api/                 # FastAPI application and routes
+│   ├── models/              # Pydantic data models
 │   ├── orchestrator/        # Supervisor orchestration
 │   ├── services/            # LLM, document, and storage services
-│   ├── utils/               # Resume parsing helpers
-│   ├── config.py            # Environment-based settings
+│   ├── utils/               # Resume parsing utilities
+│   ├── config.py            # Environment-based configuration
 │   ├── main.py              # Backend entry point
 │   └── requirements.txt     # Python dependencies
 ├── frontend/
-│   ├── src/                 # React application
-│   ├── package.json         # Node dependencies and scripts
-│   └── vite.config.js       # Development proxy configuration
+│   ├── src/                 # React source code
+│   ├── package.json         # Frontend scripts and dependencies
+│   └── vite.config.js       # Vite development configuration
 ├── n8n workflow/
 │   └── ApplyWise n8n Workflow.json
-├── uploads/                 # Local uploaded resumes (ignored by Git)
-└── outputs/                 # Generated documents (ignored by Git)
+├── .env.example             # Configuration template
+└── .gitignore
 ```
 
-## Prerequisites
+Generated resumes, uploaded files, local environment files, and dependency
+folders are intentionally excluded from version control.
 
-Install the following before starting:
+## Requirements
+
+Before installing ApplyWise, ensure the following are available:
 
 - Python 3.10 or newer
-- Node.js 18 or newer and npm
-- A [Groq API key](https://console.groq.com/)
-- A [Tavily API key](https://app.tavily.com/) for search/context tooling
+- Node.js 18 or newer
+- npm
+- A Groq API key
+- A Tavily API key
 
-## Local setup on Windows
+API keys can be created from the [Groq Console](https://console.groq.com/)
+and the [Tavily Dashboard](https://app.tavily.com/).
 
-Run these commands from the project root:
+## Installation
+
+Clone the repository and enter its directory:
+
+```bash
+git clone https://github.com/<owner>/<repository>.git
+cd ApplyWise
+```
+
+Create a Python virtual environment and install the backend dependencies.
+On Windows:
 
 ```powershell
-cd "L:\AU\SEM-6\GenAI\Project\ApplyWise"
-
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r backend\requirements.txt
 ```
 
-If PowerShell blocks activation, either run:
+On macOS or Linux:
 
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r backend/requirements.txt
 ```
 
-or use the environment's Python directly:
+Install the frontend dependencies:
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
-```
-
-Install frontend dependencies:
-
-```powershell
+```bash
 cd frontend
 npm install
 cd ..
 ```
 
-## Configure environment variables
+## Configuration
 
-Create a local `.env` file in the project root by copying `.env.example`:
+Create a local `.env` file from the included template:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Open `.env` and replace the placeholder values with your real API keys.
-`.env.example` is safe to commit because it contains no credentials.
+On macOS or Linux:
 
-Do not put real keys in `README.md`, source code, screenshots, or the n8n
-workflow JSON. The backend loads `.env` automatically through
-`pydantic-settings`.
+```bash
+cp .env.example .env
+```
 
-## Run the Python/FastAPI application
+Add valid credentials to `.env`:
 
-Build the frontend first so FastAPI can serve its production files:
+```dotenv
+GROQ_API_KEY=replace_with_a_groq_api_key
+TAVILY_API_KEY=replace_with_a_tavily_api_key
+```
 
-```powershell
+The `.env` file must remain local and must not be committed to a public
+repository. The backend loads these values through `pydantic-settings`.
+
+## Running the application
+
+The production-style application serves the built React frontend from FastAPI.
+Build the frontend before starting the backend:
+
+```bash
 cd frontend
 npm run build
 cd ..
 ```
 
-Start the full application:
+Start the backend from the repository root:
+
+On Windows:
 
 ```powershell
 .\.venv\Scripts\python.exe backend\main.py
 ```
 
-Open:
+On macOS or Linux:
 
-- Application: <http://localhost:8000>
-- Swagger API documentation: <http://localhost:8000/docs>
+```bash
+./.venv/bin/python backend/main.py
+```
+
+The application is available at:
+
+- Web interface: <http://localhost:8000>
+- Interactive API documentation: <http://localhost:8000/docs>
 - Health check: <http://localhost:8000/health>
 
-Basic workflow:
+### Frontend development mode
 
-1. Enter the applicant name and email.
-2. Upload a PDF or DOCX resume.
-3. Paste the target job description.
-4. Submit the form and wait for processing.
-5. Review scores, agent outputs, and improvements.
-6. Download the tailored resume and cover letter.
+For frontend development, run the backend and Vite development server in
+separate terminals:
 
-## Frontend development mode
-
-For live frontend changes, use two terminals.
-
-Terminal 1:
-
-```powershell
-.\.venv\Scripts\python.exe backend\main.py
-```
-
-Terminal 2:
-
-```powershell
+```bash
 cd frontend
 npm run dev
 ```
 
-Open <http://localhost:3000>. Vite proxies `/api` requests to the backend at
+The development interface is available at
+<http://localhost:3000>. Vite proxies API requests to the FastAPI server at
 `http://localhost:8000`.
 
-Useful frontend commands:
+Available frontend commands:
 
-```powershell
+```bash
+npm run dev
 npm run build
 npm run lint
 npm run preview
 ```
 
-## API endpoints
+## Using the application
 
-| Method | Endpoint | Purpose |
+1. Open the web interface.
+2. Enter the applicant's name and email address.
+3. Upload a PDF or DOCX resume.
+4. Paste the target job description.
+5. Submit the application for processing.
+6. Review the tailored resume, cover letter, scores, agent results, and
+   improvement suggestions.
+7. Download the generated DOCX files.
+
+## API
+
+| Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/health` | Check whether the service is running |
-| `GET` | `/api/info` | Show application and endpoint information |
-| `POST` | `/api/process` | Process a resume and job description |
-| `GET` | `/api/results/{job_id}` | List generated files for a job |
-| `GET` | `/api/download/{job_id}/{file_type}` | Download a generated document |
-| `POST` | `/api/cleanup/{job_id}` | Remove local job files |
+| `GET` | `/health` | Returns the service health status |
+| `GET` | `/api/info` | Returns application and endpoint information |
+| `POST` | `/api/process` | Processes a resume and job description |
+| `GET` | `/api/results/{job_id}` | Lists files generated for a job |
+| `GET` | `/api/download/{job_id}/{file_type}` | Downloads a generated document |
+| `POST` | `/api/cleanup/{job_id}` | Removes local files for a job |
 
-The `/api/process` endpoint expects multipart form data with:
+The `/api/process` endpoint accepts `multipart/form-data` with these fields:
 
 - `job_description`
 - `applicant_name`
@@ -202,110 +248,65 @@ The `/api/process` endpoint expects multipart form data with:
 
 ## n8n workflow
 
-The workflow is stored at
-`n8n workflow/ApplyWise n8n Workflow.json`.
+An alternative workflow is available in
+[`n8n workflow/ApplyWise n8n Workflow.json`](n8n%20workflow/ApplyWise%20n8n%20Workflow.json).
 
-To import it:
+To use it:
 
-1. Open n8n.
-2. Select **Workflows**, then **Import from File**.
-3. Choose the workflow JSON file.
-4. Create or select a Groq credential for the Groq HTTP Request nodes.
-5. Review the webhook, HTTP Request, and response nodes before activating it.
-6. Activate the workflow and copy the generated webhook URL.
+1. Open an n8n instance.
+2. Import the JSON file from **Workflows > Import from File**.
+3. Configure the Groq credential used by the HTTP Request nodes.
+4. Review the webhook and response settings.
+5. Activate the workflow and use its generated webhook URL.
 
-The n8n flow expects a `multipart/form-data` request with a resume file field
-named `resume` and applicant/job fields such as `name`, `email`, and
-`job_description`. The n8n Vite configuration also contains a development
-proxy for `http://localhost:5678`.
+The workflow expects a `multipart/form-data` request containing:
 
-Do not export credentials with the workflow or commit n8n credential files.
+- A resume file in a field named `resume`
+- Applicant name in `name`, `applicant_name`, or `applicantName`
+- Applicant email in `email`, `applicant_email`, or `applicantEmail`
+- Job description in `job_description`, `jobDescription`, or `jd`
 
-## Testing and troubleshooting
+The n8n workflow processes DOCX resumes and uses Groq for the agent stages.
+Credentials should be configured in n8n rather than stored in the exported
+workflow file.
 
-Check that the environment is active and dependencies are installed:
+## Data and privacy
 
-```powershell
-.\.venv\Scripts\python.exe -m pip check
+Resumes and generated application documents may contain personally
+identifiable information. Use sample data for demonstrations, do not commit
+personal documents to source control, and review the privacy policies of any
+external AI or search services used with this application.
+
+The following paths are ignored by default:
+
+```text
+.env
+.venv/
+frontend/node_modules/
+frontend/dist/
+uploads/
+outputs/
+*.docx
+*.pdf
+run.md
 ```
 
-If the app cannot start, verify:
+## Development
 
-- `.env` exists in the project root.
-- Both API keys are present and valid.
-- `frontend\dist\index.html` exists after `npm run build`.
-- Port `8000` is not already in use.
-- The uploaded resume is a readable PDF or DOCX file.
+Python dependencies are pinned in
+[`backend/requirements.txt`](backend/requirements.txt). The frontend
+dependencies and scripts are defined in
+[`frontend/package.json`](frontend/package.json).
 
-## Upload this project to GitHub
+Before submitting changes, run the relevant checks:
 
-### 1. Review files before publishing
-
-The repository should include `README.md`, `.gitignore`, `.env.example`, and
-`backend\requirements.txt`. The requirements file is intentionally tracked so
-others can install the exact Python dependencies.
-
-Do not include `.env`, `.venv`, `frontend\node_modules`, `uploads`, `outputs`,
-or `run.md`. The `.gitignore` covers them, but always review the staging list.
-
-### 2. Initialize Git and create the first commit
-
-Run from the project root:
-
-```powershell
-git init
-git branch -M main
-git add .
-git status
-git commit -m "Initial commit"
+```bash
+cd frontend
+npm run lint
+npm run build
 ```
-
-Before committing, confirm that `git status` does not list API keys, resumes,
-DOCX output files, `node_modules`, `.env`, or `run.md`. Confirm that
-`.env.example` and `backend\requirements.txt` are present.
-
-### 3. Create the GitHub repository
-
-On GitHub:
-
-1. Click **New repository**.
-2. Enter a repository name such as `ApplyWise`.
-3. Choose **Public** or **Private**.
-4. Do not add another README, `.gitignore`, or license if this project already
-   contains them.
-5. Click **Create repository**.
-
-### 4. Connect the local project and push
-
-Replace `YOUR_USERNAME` with your GitHub username:
-
-```powershell
-git remote add origin https://github.com/YOUR_USERNAME/ApplyWise.git
-git remote -v
-git push -u origin main
-```
-
-If you use GitHub CLI instead:
-
-```powershell
-gh auth login
-gh repo create ApplyWise --private --source=. --remote=origin --push
-```
-
-### 5. Add repository metadata
-
-After the first push, update the GitHub repository description and topics, for
-example: `python`, `fastapi`, `react`, `vite`, `groq`, `n8n`, `generative-ai`,
-and `job-application`.
-
-## Security and privacy
-
-This application processes resumes and personal contact information. Use
-synthetic/sample data while demonstrating the project, restrict repository
-visibility when appropriate, rotate a key immediately if it is ever exposed,
-and avoid uploading production resumes to public repositories.
 
 ## License
 
-No license has been selected yet. Add a `LICENSE` file before presenting this
-repository as open source.
+No license has been specified for this project yet. A license should be added
+before redistributing the software or accepting external contributions.
