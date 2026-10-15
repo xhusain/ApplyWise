@@ -80,17 +80,7 @@
                       "position":  [
                                        -16,
                                        -96
-                                   ],
-                      "credentials":  {
-                                          "httpHeaderAuth":  {
-                                                                 "id":  "TPPuFuGHtBGoHRNQ",
-                                                                 "name":  "Header Auth account"
-                                                             },
-                                          "groqApi":  {
-                                                          "id":  "2mTyjDcDiGCjCoj1",
-                                                          "name":  "Groq account 2"
-                                                      }
-                                      }
+                                   ]
                   },
                   {
                       "parameters":  {
@@ -125,17 +115,7 @@
                       "position":  [
                                        448,
                                        -96
-                                   ],
-                      "credentials":  {
-                                          "httpHeaderAuth":  {
-                                                                 "id":  "TPPuFuGHtBGoHRNQ",
-                                                                 "name":  "Header Auth account"
-                                                             },
-                                          "groqApi":  {
-                                                          "id":  "SxrEhGkO7kljkyCk",
-                                                          "name":  "Groq account"
-                                                      }
-                                      }
+                                   ]
                   },
                   {
                       "parameters":  {
@@ -170,17 +150,7 @@
                       "position":  [
                                        896,
                                        -96
-                                   ],
-                      "credentials":  {
-                                          "httpHeaderAuth":  {
-                                                                 "id":  "TPPuFuGHtBGoHRNQ",
-                                                                 "name":  "Header Auth account"
-                                                             },
-                                          "groqApi":  {
-                                                          "id":  "SxrEhGkO7kljkyCk",
-                                                          "name":  "Groq account"
-                                                      }
-                                      }
+                                   ]
                   },
                   {
                       "parameters":  {
@@ -215,17 +185,7 @@
                       "position":  [
                                        240,
                                        224
-                                   ],
-                      "credentials":  {
-                                          "httpHeaderAuth":  {
-                                                                 "id":  "TPPuFuGHtBGoHRNQ",
-                                                                 "name":  "Header Auth account"
-                                                             },
-                                          "groqApi":  {
-                                                          "id":  "SxrEhGkO7kljkyCk",
-                                                          "name":  "Groq account"
-                                                      }
-                                      }
+                                   ]
                   },
                   {
                       "parameters":  {
@@ -260,17 +220,7 @@
                       "position":  [
                                        672,
                                        224
-                                   ],
-                      "credentials":  {
-                                          "httpHeaderAuth":  {
-                                                                 "id":  "TPPuFuGHtBGoHRNQ",
-                                                                 "name":  "Header Auth account"
-                                                             },
-                                          "groqApi":  {
-                                                          "id":  "2mTyjDcDiGCjCoj1",
-                                                          "name":  "Groq account 2"
-                                                      }
-                                      }
+                                   ]
                   },
                   {
                       "parameters":  {
@@ -310,10 +260,10 @@
                                                      },
                                          "folderId":  {
                                                           "__rl":  true,
-                                                          "value":  "1FSy5Khq6KlGeyqaal8Rl4zzw1EWp1-Ni",
+                                                          "value":  "REPLACE_WITH_GOOGLE_DRIVE_FOLDER_ID",
                                                           "mode":  "list",
                                                           "cachedResultName":  "genai proj n8n outputs",
-                                                          "cachedResultUrl":  "https://drive.google.com/drive/folders/1FSy5Khq6KlGeyqaal8Rl4zzw1EWp1-Ni"
+                                                          "cachedResultUrl":  "https://drive.google.com/drive/folders/REPLACE_WITH_GOOGLE_DRIVE_FOLDER_ID"
                                                       },
                                          "options":  {
                                                          "useContentAsIndexableText":  true,
@@ -341,10 +291,10 @@
                                                      },
                                          "folderId":  {
                                                           "__rl":  true,
-                                                          "value":  "1FSy5Khq6KlGeyqaal8Rl4zzw1EWp1-Ni",
+                                                          "value":  "REPLACE_WITH_GOOGLE_DRIVE_FOLDER_ID",
                                                           "mode":  "list",
                                                           "cachedResultName":  "genai proj n8n outputs",
-                                                          "cachedResultUrl":  "https://drive.google.com/drive/folders/1FSy5Khq6KlGeyqaal8Rl4zzw1EWp1-Ni"
+                                                          "cachedResultUrl":  "https://drive.google.com/drive/folders/REPLACE_WITH_GOOGLE_DRIVE_FOLDER_ID"
                                                       },
                                          "options":  {
                                                          "useContentAsIndexableText":  true,
@@ -600,8 +550,7 @@
                  },
     "versionId":  "fac2b09d-5072-4903-9609-8ec82c6b352a",
     "meta":  {
-                 "templateCredsSetupCompleted":  true,
-                 "instanceId":  "1642e94b4b620fb9ee9840a1cedf02f8bda170e6f567d1754299a9b07f58613e"
+                 "templateCredsSetupCompleted":  false
              },
     "id":  "aF-IthfN7jR1QwXK1w0Bp",
     "tags":  [
