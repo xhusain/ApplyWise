@@ -1,0 +1,622 @@
+﻿{
+    "name":  "ApplyWise n8n Workflow",
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "applywise-groq-docx",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+                                                         "binaryPropertyName":  "resume"
+                                                     }
+                                     },
+                      "id":  "9a13dd1d-672d-4966-94fc-294d60061c53",
+                      "name":  "Webhook - Postman Input",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2.1,
+                      "position":  [
+                                       -16,
+                                       -384
+                                   ],
+                      "webhookId":  "5f2819bf-3fbc-41c5-9ec0-2d69e234b372"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const item = $input.first();\nconst body = item.json.body || item.json || {};\nconst binary = item.binary || {};\nconst firstBinaryKey = Object.keys(binary)[0];\n\nif (!firstBinaryKey) {\n  throw new Error(\u0027Missing resume DOCX file. Send multipart/form-data with file field name: resume\u0027);\n}\n\nconst resumeBinary = binary[firstBinaryKey];\nresumeBinary.fileExtension = \u0027zip\u0027;\nresumeBinary.mimeType = \u0027application/zip\u0027;\n\nreturn [{\n  json: {\n    applicant_name: body.name || body.applicant_name || body.applicantName || \u0027\u0027,\n    applicant_email: body.email || body.applicant_email || body.applicantEmail || \u0027\u0027,\n    job_description: body.job_description || body.jobDescription || body.jd || \u0027\u0027,\n    original_resume_file_name: binary[firstBinaryKey].fileName || \u0027resume.docx\u0027,\n    submitted_at: new Date().toISOString()\n  },\n  binary: {\n    resume: resumeBinary\n  }\n}];"
+                                     },
+                      "id":  "c5096118-1efc-45d3-b331-b2b7651087f3",
+                      "name":  "Normalize Input And DOCX Binary",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       224,
+                                       -384
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "binaryPropertyName":  "resume",
+                                         "outputPrefix":  "docx_"
+                                     },
+                      "id":  "e19d13ef-6cd7-4c1b-965f-2c2969b8ad2e",
+                      "name":  "Unzip DOCX Resume",
+                      "type":  "n8n-nodes-base.compression",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       448,
+                                       -384
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const normalize = $(\u0027Normalize Input And DOCX Binary\u0027).first().json;\nconst item = $input.first();\nconst binary = item.binary || {};\nconst keys = Object.keys(binary);\n\nfunction decodeXmlEntities(text) {\n  return text\n    .replace(/\u0026amp;/g, \u0027\u0026\u0027)\n    .replace(/\u0026lt;/g, \u0027\u003c\u0027)\n    .replace(/\u0026gt;/g, \u0027\u003e\u0027)\n    .replace(/\u0026quot;/g, \u0027\"\u0027)\n    .replace(/\u0026apos;/g, \"\u0027\");\n}\n\nfunction xmlToText(xml) {\n  return decodeXmlEntities(\n    xml\n      .replace(/\u003cw:tab\\/\u003e/g, \u0027\\t\u0027)\n      .replace(/\u003cw:br\\/\u003e/g, \u0027\\n\u0027)\n      .replace(/\u003cw:p[^\u003e]*\u003e/g, \u0027\u0027)\n      .replace(/\u003c\\/w:p\u003e/g, \u0027\\n\u0027)\n      .replace(/\u003c[^\u003e]+\u003e/g, \u0027\u0027)\n      .replace(/\\n{3,}/g, \u0027\\n\\n\u0027)\n      .replace(/[ \\t]{2,}/g, \u0027 \u0027)\n      .trim()\n  );\n}\n\nlet resumeText = \u0027\u0027;\nconst parsedFiles = [];\n\nfor (const key of keys) {\n  const meta = binary[key];\n  const fileName = meta.fileName || \u0027\u0027;\n  const directory = meta.directory || \u0027\u0027;\n  const fullPath = directory ? `${directory}/${fileName}` : fileName;\n\n  const isDocument =\n    fullPath === \u0027word/document.xml\u0027 ||\n    /^word\\/header\\d+\\.xml$/.test(fullPath) ||\n    /^word\\/footer\\d+\\.xml$/.test(fullPath);\n\n  if (isDocument) {\n    const buffer = await this.helpers.getBinaryDataBuffer(0, key);\n    const xml = buffer.toString(\u0027utf8\u0027);\n    const text = xmlToText(xml);\n\n    if (text) {\n      resumeText += text + \u0027\\n\\n\u0027;\n      parsedFiles.push(fullPath);\n    }\n  }\n}\n\nresumeText = resumeText.trim();\n\nif (!resumeText) {\n  throw new Error(\n    `Could not extract text from DOCX. Found files: ${keys\n      .map((key) =\u003e {\n        const meta = binary[key];\n        return meta.directory ? `${meta.directory}/${meta.fileName}` : meta.fileName;\n      })\n      .join(\u0027, \u0027)}`\n  );\n}\n\nreturn [\n  {\n    json: {\n      applicant: {\n        name: normalize.applicant_name,\n        email: normalize.applicant_email\n      },\n      job_description: normalize.job_description,\n      resume_text: resumeText,\n      resume_source: {\n        original_file_name: normalize.original_resume_file_name,\n        parsed_docx_files: parsedFiles\n      },\n      submitted_at: normalize.submitted_at\n    }\n  }\n];"
+                                     },
+                      "id":  "2e36a214-254e-4ba6-8ed6-da46630f84b9",
+                      "name":  "Extract Text From DOCX XML",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       672,
+                                       -384
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.groq.com/openai/v1/chat/completions",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "groqApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ model: \u0027llama-3.3-70b-versatile\u0027, temperature: 0.2, response_format: { type: \u0027json_object\u0027 }, messages: [{ role: \u0027system\u0027, content: \u0027You are the Job Finder Agent. Return strict JSON only. Include reasoning_summary, processing_steps, extracted_role, company, seniority, job_context, responsibilities, required_skills, preferred_skills, qualifications, ats_keywords, risks, and research_suggestions. Do not reveal private chain-of-thought; summarize reasoning only.\u0027 }, { role: \u0027user\u0027, content: \u0027Analyze this job description:\\n\\n\u0027 + $json.job_description }] }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "9ce6f6c6-f383-4834-9dd0-083d17820472",
+                      "name":  "Groq - Job Requirement Extraction Agent",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       -16,
+                                       -96
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "TPPuFuGHtBGoHRNQ",
+                                                                 "name":  "Header Auth account"
+                                                             },
+                                          "groqApi":  {
+                                                          "id":  "2mTyjDcDiGCjCoj1",
+                                                          "name":  "Groq account 2"
+                                                      }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const previous = $(\u0027Extract Text From DOCX XML\u0027).first().json;\nconst raw = $input.first().json.choices?.[0]?.message?.content || \u0027{}\u0027;\nlet parsed;\ntry { parsed = JSON.parse(raw); } catch (e) { parsed = { raw_response: raw, parse_error: e.message }; }\nreturn [{ json: { ...previous, agents: { job_finder_agent: parsed } } }];"
+                                     },
+                      "id":  "bcfb94f0-e80e-4832-bd3d-3d8f2ade880c",
+                      "name":  "Parse Job Analysis",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       -96
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.groq.com/openai/v1/chat/completions",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "groqApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ model: \u0027llama-3.3-70b-versatile\u0027, temperature: 0.25, response_format: { type: \u0027json_object\u0027 }, messages: [{ role: \u0027system\u0027, content: \u0027You are the Resume Matching Agent. Return strict JSON only with reasoning_summary, processing_steps, match_score, matched_requirements, missing_requirements, transferable_strengths, weak_points, keyword_gaps, and tailoring_strategy. Do not reveal private chain-of-thought; summarize reasoning only.\u0027 }, { role: \u0027user\u0027, content: \u0027Applicant resume text:\\n\u0027 + $json.resume_text + \u0027\\n\\nJob analysis JSON:\\n\u0027 + JSON.stringify($json.agents.job_finder_agent) }] }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "12bf5044-4362-42d7-b6fd-90142cb296df",
+                      "name":  "Groq - Resume Matching Agent",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       448,
+                                       -96
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "TPPuFuGHtBGoHRNQ",
+                                                                 "name":  "Header Auth account"
+                                                             },
+                                          "groqApi":  {
+                                                          "id":  "SxrEhGkO7kljkyCk",
+                                                          "name":  "Groq account"
+                                                      }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const previous = $(\u0027Parse Job Analysis\u0027).first().json;\nconst raw = $input.first().json.choices?.[0]?.message?.content || \u0027{}\u0027;\nlet parsed;\ntry { parsed = JSON.parse(raw); } catch (e) { parsed = { raw_response: raw, parse_error: e.message }; }\nreturn [{ json: { ...previous, agents: { ...previous.agents, resume_matching_agent: parsed }, resume_match_analysis: parsed } }];"
+                                     },
+                      "id":  "db66e2ba-8e48-4875-8be5-29050c9a6a0e",
+                      "name":  "Parse Resume Match",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       672,
+                                       -96
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.groq.com/openai/v1/chat/completions",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "groqApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ model: \u0027llama-3.3-70b-versatile\u0027, temperature: 0.35, response_format: { type: \u0027json_object\u0027 }, messages: [{ role: \u0027system\u0027, content: \u0027You are the Resume Tailor Agent. Return strict JSON only with reasoning_summary, processing_steps, tailoring_strategy, final_resume_markdown, key_changes, ats_keywords_added, and cautions. Do not reveal private chain-of-thought; summarize reasoning only.\u0027 }, { role: \u0027user\u0027, content: \u0027Applicant:\\n\u0027 + JSON.stringify($json.applicant) + \u0027\\n\\nOriginal resume text:\\n\u0027 + $json.resume_text + \u0027\\n\\nJob analysis:\\n\u0027 + JSON.stringify($json.agents.job_finder_agent) + \u0027\\n\\nResume match analysis:\\n\u0027 + JSON.stringify($json.resume_match_analysis) + \u0027\\n\\nCreate a tailored resume in Markdown. Keep it truthful and based only on the resume content.\u0027 }] }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "b6a3d6d1-1111-4444-9999-resumetailor01",
+                      "name":  "Groq - Resume Tailor Agent",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       896,
+                                       -96
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "TPPuFuGHtBGoHRNQ",
+                                                                 "name":  "Header Auth account"
+                                                             },
+                                          "groqApi":  {
+                                                          "id":  "SxrEhGkO7kljkyCk",
+                                                          "name":  "Groq account"
+                                                      }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const previous = $(\u0027Parse Resume Match\u0027).first().json;\nconst raw = $input.first().json.choices?.[0]?.message?.content || \u0027{}\u0027;\nlet parsed;\ntry { parsed = JSON.parse(raw); } catch (e) { parsed = { raw_response: raw, parse_error: e.message }; }\nreturn [{ json: { ...previous, agents: { ...previous.agents, resume_tailor_agent: parsed }, tailored_resume: parsed } }];"
+                                     },
+                      "id":  "59cacfb5-518d-4634-baf8-19cad59e2809",
+                      "name":  "Parse Tailored Resume",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -16,
+                                       224
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.groq.com/openai/v1/chat/completions",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "groqApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ model: \u0027llama-3.3-70b-versatile\u0027, temperature: 0.45, response_format: { type: \u0027json_object\u0027 }, messages: [{ role: \u0027system\u0027, content: \u0027You are the Cover Letter Agent. Return strict JSON only with reasoning_summary, processing_steps, tone_strategy, personalization_points, final_cover_letter_markdown, and why_this_letter_fits. Do not reveal private chain-of-thought; summarize reasoning only.\u0027 }, { role: \u0027user\u0027, content: \u0027Applicant:\\n\u0027 + JSON.stringify($json.applicant) + \u0027\\n\\nJob analysis:\\n\u0027 + JSON.stringify($json.agents.job_finder_agent) + \u0027\\n\\nTailored resume:\\n\u0027 + JSON.stringify($json.tailored_resume) + \u0027\\n\\nWrite a concise, personalized cover letter.\u0027 }] }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "bd7b9cc6-a935-4d81-8481-e483d32753fa",
+                      "name":  "Groq - Cover Letter Agent",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       240,
+                                       224
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "TPPuFuGHtBGoHRNQ",
+                                                                 "name":  "Header Auth account"
+                                                             },
+                                          "groqApi":  {
+                                                          "id":  "SxrEhGkO7kljkyCk",
+                                                          "name":  "Groq account"
+                                                      }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const previous = $(\u0027Parse Tailored Resume\u0027).first().json;\nconst raw = $input.first().json.choices?.[0]?.message?.content || \u0027{}\u0027;\nlet parsed;\ntry { parsed = JSON.parse(raw); } catch (e) { parsed = { raw_response: raw, parse_error: e.message }; }\nreturn [{ json: { ...previous, agents: { ...previous.agents, cover_letter_agent: parsed }, cover_letter: parsed } }];"
+                                     },
+                      "id":  "d4d7f672-5026-47a6-840a-03fd26cb16e0",
+                      "name":  "Parse Cover Letter",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       448,
+                                       224
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://api.groq.com/openai/v1/chat/completions",
+                                         "authentication":  "predefinedCredentialType",
+                                         "nodeCredentialType":  "groqApi",
+                                         "sendBody":  true,
+                                         "specifyBody":  "json",
+                                         "jsonBody":  "={{ JSON.stringify({ model: \u0027llama-3.3-70b-versatile\u0027, temperature: 0.2, response_format: { type: \u0027json_object\u0027 }, messages: [{ role: \u0027system\u0027, content: \u0027You are the Critic Agent using reflection. Return strict JSON only with reasoning_summary, processing_steps, ats_score, job_alignment_score, resume_quality_score, cover_letter_score, overall_readiness_score, strengths, issues, recommended_improvements, final_verdict, and ready_to_submit. Do not reveal private chain-of-thought; summarize reasoning only.\u0027 }, { role: \u0027user\u0027, content: \u0027Review this complete application package.\\n\\nJob analysis:\\n\u0027 + JSON.stringify($json.agents.job_finder_agent) + \u0027\\n\\nResume match:\\n\u0027 + JSON.stringify($json.resume_match_analysis) + \u0027\\n\\nTailored resume:\\n\u0027 + JSON.stringify($json.tailored_resume) + \u0027\\n\\nCover letter:\\n\u0027 + JSON.stringify($json.cover_letter) }] }) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "84fadab3-d6e3-4f7b-bfb4-5c26bc3c9279",
+                      "name":  "Groq - Quality Review Critic Agent",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       672,
+                                       224
+                                   ],
+                      "credentials":  {
+                                          "httpHeaderAuth":  {
+                                                                 "id":  "TPPuFuGHtBGoHRNQ",
+                                                                 "name":  "Header Auth account"
+                                                             },
+                                          "groqApi":  {
+                                                          "id":  "2mTyjDcDiGCjCoj1",
+                                                          "name":  "Groq account 2"
+                                                      }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const previous = $(\u0027Parse Cover Letter\u0027).first().json;\nconst raw = $input.first().json.choices?.[0]?.message?.content || \u0027{}\u0027;\nlet parsed;\ntry { parsed = JSON.parse(raw); } catch (e) { parsed = { raw_response: raw, parse_error: e.message }; }\nreturn [{ json: { ...previous, agents: { ...previous.agents, critic_agent: parsed }, critic_review: parsed } }];"
+                                     },
+                      "id":  "2e6bda82-afd3-4c21-ae2f-2619cb72399b",
+                      "name":  "Parse Critic Review",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -16,
+                                       560
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const data = $input.first().json;\n\nconst safeName = (data.applicant.name || \u0027Applicant\u0027)\n  .replace(/[^a-z0-9 _-]/gi, \u0027\u0027)\n  .trim();\n\nconst role =\n  data.agents.job_finder_agent.extracted_role ||\n  data.agents.job_finder_agent.role ||\n  \u0027Target Role\u0027;\n\nconst company =\n  data.agents.job_finder_agent.company ||\n  \u0027Target Company\u0027;\n\nfunction cleanMarkdownForGoogleDocs(markdown) {\n  if (!markdown) return \u0027\u0027;\n\n  return markdown\n    // Remove mailto markdown links but keep email text\n    .replace(/\\[([^\\]]+)\\]\\(mailto:[^)]+\\)/gi, \u0027$1\u0027)\n\n    // Remove normal markdown links but keep visible text\n    .replace(/\\[([^\\]]+)\\]\\([^)]+\\)/g, \u0027$1\u0027)\n\n    // Convert H1 headings\n    .replace(/^#\\s+(.+)$/gm, \u0027$1\\n\u0027 + \u0027=\u0027.repeat(42))\n\n    // Convert H2 headings\n    .replace(/^##\\s+(.+)$/gm, \u0027\\n$1\\n\u0027 + \u0027-\u0027.repeat(32))\n\n    // Convert H3 headings\n    .replace(/^###\\s+(.+)$/gm, \u0027\\n$1\u0027)\n\n    // Convert bullets\n    .replace(/^\\*\\s+/gm, \u0027- \u0027)\n\n    // Remove bold/italic markdown\n    .replace(/\\*\\*([^*]+)\\*\\*/g, \u0027$1\u0027)\n    .replace(/\\*([^*]+)\\*/g, \u0027$1\u0027)\n\n    // Normalize spacing\n    .replace(/[ \\t]+$/gm, \u0027\u0027)\n    .replace(/\\n{3,}/g, \u0027\\n\\n\u0027)\n    .trim();\n}\n\nconst resumeMarkdown =\n  data.tailored_resume.final_resume_markdown ||\n  JSON.stringify(data.tailored_resume, null, 2);\n\nconst coverLetterMarkdown =\n  data.cover_letter.final_cover_letter_markdown ||\n  JSON.stringify(data.cover_letter, null, 2);\n\nreturn [\n  {\n    json: {\n      ...data,\n      document_payloads: {\n        tailored_resume_title: `Tailored Resume - ${safeName} - ${role}`,\n        cover_letter_title: `Cover Letter - ${safeName} - ${company}`,\n        tailored_resume_text: cleanMarkdownForGoogleDocs(resumeMarkdown),\n        cover_letter_text: cleanMarkdownForGoogleDocs(coverLetterMarkdown)\n      }\n    }\n  }\n];"
+                                     },
+                      "id":  "fcef5721-0764-49aa-b26c-6865dd86dfdf",
+                      "name":  "Prepare Final Google Docs Content",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       560
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "createFromText",
+                                         "content":  "={{ $json.document_payloads.tailored_resume_text }}",
+                                         "name":  "={{ $json.document_payloads.tailored_resume_title }}",
+                                         "driveId":  {
+                                                         "__rl":  true,
+                                                         "mode":  "list",
+                                                         "value":  "My Drive"
+                                                     },
+                                         "folderId":  {
+                                                          "__rl":  true,
+                                                          "value":  "1FSy5Khq6KlGeyqaal8Rl4zzw1EWp1-Ni",
+                                                          "mode":  "list",
+                                                          "cachedResultName":  "genai proj n8n outputs",
+                                                          "cachedResultUrl":  "https://drive.google.com/drive/folders/1FSy5Khq6KlGeyqaal8Rl4zzw1EWp1-Ni"
+                                                      },
+                                         "options":  {
+                                                         "useContentAsIndexableText":  true,
+                                                         "convertToGoogleDocument":  true
+                                                     }
+                                     },
+                      "id":  "7c9ea19a-dab4-4dd6-a143-d83d98a6342b",
+                      "name":  "Create Final Tailored Resume Google Doc",
+                      "type":  "n8n-nodes-base.googleDrive",
+                      "typeVersion":  3,
+                      "position":  [
+                                       448,
+                                       560
+                                   ],
+                      "credentials":  {
+                                          "googleDriveOAuth2Api":  {
+                                                                       "id":  "y5FM8vrBayR9X0Bw",
+                                                                       "name":  "Google Drive account"
+                                                                   }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "operation":  "createFromText",
+                                         "content":  "={{ $(\u0027Prepare Final Google Docs Content\u0027).first().json.document_payloads.cover_letter_text }}",
+                                         "name":  "={{ $(\u0027Prepare Final Google Docs Content\u0027).first().json.document_payloads.cover_letter_title }}",
+                                         "driveId":  {
+                                                         "__rl":  true,
+                                                         "mode":  "list",
+                                                         "value":  "My Drive"
+                                                     },
+                                         "folderId":  {
+                                                          "__rl":  true,
+                                                          "value":  "1FSy5Khq6KlGeyqaal8Rl4zzw1EWp1-Ni",
+                                                          "mode":  "list",
+                                                          "cachedResultName":  "genai proj n8n outputs",
+                                                          "cachedResultUrl":  "https://drive.google.com/drive/folders/1FSy5Khq6KlGeyqaal8Rl4zzw1EWp1-Ni"
+                                                      },
+                                         "options":  {
+                                                         "useContentAsIndexableText":  true,
+                                                         "convertToGoogleDocument":  true
+                                                     }
+                                     },
+                      "id":  "0e6572e1-09d6-4e55-b19b-35dab5ef4e2c",
+                      "name":  "Create Final Cover Letter Google Doc",
+                      "type":  "n8n-nodes-base.googleDrive",
+                      "typeVersion":  3,
+                      "position":  [
+                                       672,
+                                       560
+                                   ],
+                      "credentials":  {
+                                          "googleDriveOAuth2Api":  {
+                                                                       "id":  "y5FM8vrBayR9X0Bw",
+                                                                       "name":  "Google Drive account"
+                                                                   }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const data = $(\u0027Prepare Final Google Docs Content\u0027).first().json;\nconst resumeDoc = $(\u0027Create Final Tailored Resume Google Doc\u0027).first().json;\nconst coverDoc = $(\u0027Create Final Cover Letter Google Doc\u0027).first().json;\n\nreturn [{\n  json: {\n    success: true,\n    assistant: \u0027ApplyWise-style Groq AI job application assistant\u0027,\n    applicant: data.applicant,\n    submitted_at: data.submitted_at,\n    input_summary: {\n      original_resume_file_name: data.resume_source.original_file_name,\n      parsed_docx_files: data.resume_source.parsed_docx_files,\n      job_description_received: Boolean(data.job_description)\n    },\n    final_results: {\n      tailored_resume: data.tailored_resume,\n      cover_letter: data.cover_letter,\n      resume_match_analysis: data.resume_match_analysis,\n      critic_review: data.critic_review\n    },\n    agent_outputs: data.agents,\n    google_docs: {\n      tailored_resume: {\n        id: resumeDoc.id,\n        name: resumeDoc.name,\n        url: \u0027https://docs.google.com/document/d/\u0027 + resumeDoc.id + \u0027/edit\u0027\n      },\n      cover_letter: {\n        id: coverDoc.id,\n        name: coverDoc.name,\n        url: \u0027https://docs.google.com/document/d/\u0027 + coverDoc.id + \u0027/edit\u0027\n      }\n    }\n  }\n}];"
+                                     },
+                      "id":  "2f26805d-e818-465c-818f-c62c617645f7",
+                      "name":  "Build Final Structured Response",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       992,
+                                       560
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "text",
+                                         "responseBody":  "={{ JSON.stringify($json, null, 2) }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "7a1ff5cf-07de-4e92-a634-69fb72a2c387",
+                      "name":  "Respond To Postman",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1.1,
+                      "position":  [
+                                       1200,
+                                       560
+                                   ]
+                  }
+              ],
+    "pinData":  {
+
+                },
+    "connections":  {
+                        "Webhook - Postman Input":  {
+                                                        "main":  [
+                                                                     [
+                                                                         {
+                                                                             "node":  "Normalize Input And DOCX Binary",
+                                                                             "type":  "main",
+                                                                             "index":  0
+                                                                         }
+                                                                     ]
+                                                                 ]
+                                                    },
+                        "Normalize Input And DOCX Binary":  {
+                                                                "main":  [
+                                                                             [
+                                                                                 {
+                                                                                     "node":  "Unzip DOCX Resume",
+                                                                                     "type":  "main",
+                                                                                     "index":  0
+                                                                                 }
+                                                                             ]
+                                                                         ]
+                                                            },
+                        "Unzip DOCX Resume":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Extract Text From DOCX XML",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Extract Text From DOCX XML":  {
+                                                           "main":  [
+                                                                        [
+                                                                            {
+                                                                                "node":  "Groq - Job Requirement Extraction Agent",
+                                                                                "type":  "main",
+                                                                                "index":  0
+                                                                            }
+                                                                        ]
+                                                                    ]
+                                                       },
+                        "Groq - Job Requirement Extraction Agent":  {
+                                                                        "main":  [
+                                                                                     [
+                                                                                         {
+                                                                                             "node":  "Parse Job Analysis",
+                                                                                             "type":  "main",
+                                                                                             "index":  0
+                                                                                         }
+                                                                                     ]
+                                                                                 ]
+                                                                    },
+                        "Parse Job Analysis":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Groq - Resume Matching Agent",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Groq - Resume Matching Agent":  {
+                                                             "main":  [
+                                                                          [
+                                                                              {
+                                                                                  "node":  "Parse Resume Match",
+                                                                                  "type":  "main",
+                                                                                  "index":  0
+                                                                              }
+                                                                          ]
+                                                                      ]
+                                                         },
+                        "Parse Resume Match":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Groq - Resume Tailor Agent",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Parse Tailored Resume":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Groq - Cover Letter Agent",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Groq - Cover Letter Agent":  {
+                                                          "main":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "Parse Cover Letter",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Parse Cover Letter":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Groq - Quality Review Critic Agent",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Groq - Quality Review Critic Agent":  {
+                                                                   "main":  [
+                                                                                [
+                                                                                    {
+                                                                                        "node":  "Parse Critic Review",
+                                                                                        "type":  "main",
+                                                                                        "index":  0
+                                                                                    }
+                                                                                ]
+                                                                            ]
+                                                               },
+                        "Parse Critic Review":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Prepare Final Google Docs Content",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Prepare Final Google Docs Content":  {
+                                                                  "main":  [
+                                                                               [
+                                                                                   {
+                                                                                       "node":  "Create Final Tailored Resume Google Doc",
+                                                                                       "type":  "main",
+                                                                                       "index":  0
+                                                                                   }
+                                                                               ]
+                                                                           ]
+                                                              },
+                        "Create Final Tailored Resume Google Doc":  {
+                                                                        "main":  [
+                                                                                     [
+                                                                                         {
+                                                                                             "node":  "Create Final Cover Letter Google Doc",
+                                                                                             "type":  "main",
+                                                                                             "index":  0
+                                                                                         }
+                                                                                     ]
+                                                                                 ]
+                                                                    },
+                        "Create Final Cover Letter Google Doc":  {
+                                                                     "main":  [
+                                                                                  [
+                                                                                      {
+                                                                                          "node":  "Build Final Structured Response",
+                                                                                          "type":  "main",
+                                                                                          "index":  0
+                                                                                      }
+                                                                                  ]
+                                                                              ]
+                                                                 },
+                        "Build Final Structured Response":  {
+                                                                "main":  [
+                                                                             [
+                                                                                 {
+                                                                                     "node":  "Respond To Postman",
+                                                                                     "type":  "main",
+                                                                                     "index":  0
+                                                                                 }
+                                                                             ]
+                                                                         ]
+                                                            },
+                        "Groq - Resume Tailor Agent":  {
+                                                           "main":  [
+                                                                        {
+                                                                            "node":  "Parse Tailored Resume",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ]
+                                                       }
+                    },
+    "active":  true,
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate",
+                     "availableInMCP":  false
+                 },
+    "versionId":  "fac2b09d-5072-4903-9609-8ec82c6b352a",
+    "meta":  {
+                 "templateCredsSetupCompleted":  true,
+                 "instanceId":  "1642e94b4b620fb9ee9840a1cedf02f8bda170e6f567d1754299a9b07f58613e"
+             },
+    "id":  "aF-IthfN7jR1QwXK1w0Bp",
+    "tags":  [
+
+             ]
+}
