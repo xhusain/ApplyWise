@@ -327,13 +327,7 @@
                       "position":  [
                                        448,
                                        560
-                                   ],
-                      "credentials":  {
-                                          "googleDriveOAuth2Api":  {
-                                                                       "id":  "y5FM8vrBayR9X0Bw",
-                                                                       "name":  "Google Drive account"
-                                                                   }
-                                      }
+                                   ]
                   },
                   {
                       "parameters":  {
@@ -364,13 +358,7 @@
                       "position":  [
                                        672,
                                        560
-                                   ],
-                      "credentials":  {
-                                          "googleDriveOAuth2Api":  {
-                                                                       "id":  "y5FM8vrBayR9X0Bw",
-                                                                       "name":  "Google Drive account"
-                                                                   }
-                                      }
+                                   ]
                   },
                   {
                       "parameters":  {
